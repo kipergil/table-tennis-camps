@@ -175,14 +175,16 @@ def is_relevant(title, summary=""):
 CAT_RULES = [
     ("High-performance camp", re.compile(
         r"high[\s-]?performance|elite|\bpro camp\b|pathway|hopes|national (team|squad|coach)|"
-        r"selection|talent|squad|pre[\s-]?season", re.I)),
+        r"selection|talent|squad|pre[\s-]?season|alto rendimiento|"
+        r"talentudvikling|eliteleir|perfectionnement", re.I)),
     ("Residential camp", re.compile(
         r"residential|summer school|boarding|overnight|full board|accommodation included|"
-        r"training (camp )?in china|abroad|resort", re.I)),
+        r"training (camp )?in china|abroad|resort|residencia|internat|overnatning", re.I)),
     ("Holiday camp", re.compile(
         r"\bkids?\b|junior|child|children|youth|school holiday|holiday camp|winter (break )?camp|"
         r"spring break|march break|half[\s-]?term|christmas|easter|summer camp|year[\s-]?end|"
-        r"fun camp|rising stars|ages? \d", re.I)),
+        r"fun camp|rising stars|ages? \d|navidad|semana santa|verano|jul(e|i)?lejr|juleleir|julecamp|ungdom|"
+        r"sommerlejr|sommerleir|påske|ferien|vacances|campus", re.I)),
     ("Adult & club camp", re.compile(
         r"adult|club players?|intermediate|advanced|league|veteran|masters|over \d\d", re.I)),
     ("Skills clinic", re.compile(
@@ -682,6 +684,120 @@ def source_ttcampshungary():
         ages="All ages", level="All standards", organiser="TT Camps Hungary", category="Residential camp"))
 
 
+# --- Spanish federation (RFETM) camp agenda: dated cards, all of Spain -----
+
+RFETM_URL = "https://rfetm.es/agenda-campus"
+RFETM_DATE = re.compile(r"Del\s+(\d{2})-(\d{2})-(20\d\d)\s+al\s+(\d{2})-(\d{2})-(20\d\d)")
+
+
+def _rfetm_place(lugar):
+    """'Pabellón Las Fuentes, Utebo (Zaragoza)' -> venue, city, address."""
+    lugar = clean(lugar)
+    m = re.match(r"^(.*?)\s*\(([^)]*)\)\s*$", lugar)
+    if m:
+        parts = [p.strip() for p in m.group(1).split(",") if p.strip()]
+        city = parts[-1] if parts else ""
+        venue = ", ".join(parts[:-1])
+        return venue, city, lugar
+    if "," not in lugar:
+        return "", lugar, lugar
+    return lugar.split(",")[0].strip(), "", lugar
+
+
+def source_rfetm():
+    items = []
+    try:
+        page = fetch(RFETM_URL)
+    except (urllib.error.URLError, OSError) as e:
+        log("rfetm failed", e)
+        return items, 0
+    for card in re.split(r'<div class="col-12 col-lg-6 card', page)[1:]:
+        card = re.split(r"Otros contenidos|<footer", card)[0]  # last card runs into the footer
+        tm = re.search(r'<h5[^>]*>(.*?)</h5>', card, re.S)
+        txt = text_of(card)
+        dm = RFETM_DATE.search(txt)
+        if not tm or not dm:
+            continue
+        d1 = confirm_date(dm.group(1), dm.group(2), dm.group(3))
+        d2 = confirm_date(dm.group(4), dm.group(5), dm.group(6))
+        if not d1 or not d2 or d2 < d1:
+            continue
+        title = clean(re.sub(r"<[^>]+>", " ", tm.group(1)))
+        org = re.search(r"Organiza:\s*([^\n]+)", txt)
+        lug = re.search(r"Lugar:\s*([^\n]+)", txt)
+        venue, city, address = _rfetm_place(lug.group(1) if lug else "")
+        desc = re.search(r'<div class="mt-2">(.*?)</div>', card, re.S)
+        summary = summarise(text_of(desc.group(1)).replace("\n", " ")) if desc else ""
+        links = re.findall(r'href="([^"]+)"', card)
+        ext = [u for u in links if u.startswith("http") and "rfetm.es" not in u]
+        pdf = [urllib.parse.quote(urllib.parse.urljoin(RFETM_URL, html.unescape(u)), safe=":/%?=&")
+               for u in links if u.lower().endswith(".pdf")]
+        url = ext[0] if ext else (pdf[0] if pdf else RFETM_URL)
+        items.append(blank(
+            id="rfetm-" + make_id(title, d1),
+            title=title, start=d1.isoformat(), end=d2.isoformat(),
+            venue=venue, area=clean(lug.group(1)) if lug else "", address=address,
+            city=city, country="Spain",
+            category=categorise(title, summary, "", (d2 - d1).days + 1),
+            summary=summary, url=url, source="rfetm",
+            organiser=clean(org.group(1)) if org else "",
+        ))
+    log(f"rfetm: {len(items)} items")
+    return items, 1
+
+
+# --- Bordtennis Danmark calendar (The Events Calendar REST API) -----------
+
+DK_API = "https://bordtennisdanmark.dk/wp-json/tribe/events/v1/events"
+DK_CAMP_CATS = {"5-traeningslejre-camps-festivaler"}
+
+
+def source_bordtennisdanmark():
+    items, loaded = [], 0
+    url = DK_API + "?per_page=50&start_date=" + TODAY.isoformat()
+    for _ in range(10):  # pages
+        try:
+            data = json.loads(fetch(url, accept="application/json"))
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            log("bordtennisdanmark failed", e)
+            break
+        loaded += 1
+        for e in data.get("events") or []:
+            cats = {c.get("slug") for c in e.get("categories") or []}
+            if not cats & DK_CAMP_CATS:
+                continue
+            title = clean(e.get("title"))
+            try:
+                d1 = dt.date.fromisoformat(e["start_date"][:10])
+                d2 = dt.date.fromisoformat(e["end_date"][:10])
+            except (KeyError, ValueError):
+                continue
+            v = e.get("venue") or {}
+            if isinstance(v, list):
+                v = v[0] if v else {}
+            summary = summarise(text_of(e.get("description") or "").replace("\n", " "))
+            addr = ", ".join(x for x in [v.get("address"), " ".join(y for y in [v.get("zip"), v.get("city")] if y)] if x)
+            t = e["start_date"][11:16] if not e.get("all_day") else ""
+            items.append(blank(
+                id="dk-" + str(e.get("id")),
+                title=title, start=d1.isoformat(), end=d2.isoformat(),
+                time=t if t and t != "00:00" else "",
+                venue=clean(v.get("venue")), area=clean(v.get("city")), address=clean(addr),
+                city=clean(v.get("city")), country="Denmark",
+                category=categorise(title, summary, "", (d2 - d1).days + 1),
+                summary=summary, url=e.get("website") or e.get("url") or "",
+                source="bordtennisdanmark",
+                organiser=clean(((e.get("organizer") or [{}]) or [{}])[0].get("organizer", ""))
+                if isinstance(e.get("organizer"), list) else "",
+            ))
+        url = data.get("next_rest_url")
+        if not url:
+            break
+        time.sleep(0.5)
+    log(f"bordtennisdanmark: {len(items)} camps from {loaded} pages")
+    return items, loaded
+
+
 # name, function, primary. If every primary source loads zero pages the
 # network is blocked and the script refuses to write a near-empty feed.
 AUTOMATIC = [
@@ -693,6 +809,8 @@ AUTOMATIC = [
     ("mdttc", source_mdttc, False),
     ("paddlepalace", source_paddlepalace, False),
     ("ttcampshungary", source_ttcampshungary, False),
+    ("rfetm", source_rfetm, False),
+    ("bordtennisdanmark", source_bordtennisdanmark, False),
     ("butterfly", source_butterfly, False),
 ]
 
@@ -702,7 +820,7 @@ AUTOMATIC = [
 
 UK_POSTCODE = re.compile(r"\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b", re.I)
 GEOCACHE = os.path.join(DATA, "geocache.json")
-NOMINATIM_CC = {"United Kingdom": "gb", "United States": "us", "Canada": "ca",
+NOMINATIM_CC = {"Norway": "no", "Malta": "mt", "United Kingdom": "gb", "United States": "us", "Canada": "ca",
                 "Australia": "au", "New Zealand": "nz", "Ireland": "ie",
                 "Singapore": "sg", "Germany": "de", "Netherlands": "nl",
                 "France": "fr", "Spain": "es", "Austria": "at", "Sweden": "se",
@@ -784,7 +902,9 @@ def geocode(items, offline=False):
             if key not in cache:
                 if offline:
                     continue
-                cache[key] = _nominatim(q, cc, it.get("venue", ""))
+                hit = _nominatim(q, cc, it.get("venue", ""))
+                if hit:  # misses aren't cached, so they're retried next run
+                    cache[key] = hit
             if cache.get(key):
                 it["lat"], it["lng"] = cache[key]
                 break
@@ -795,7 +915,9 @@ def geocode(items, offline=False):
             continue
         key = f"rev:{it['lat']:.4f},{it['lng']:.4f}"
         if key not in cache and not offline:
-            cache[key] = _reverse_city(it["lat"], it["lng"])
+            city = _reverse_city(it["lat"], it["lng"])
+            if city:
+                cache[key] = city
         if cache.get(key):
             it["city"] = cache[key]
 
@@ -847,7 +969,8 @@ def _nominatim(q, cc, venue):
         return None
     finally:
         time.sleep(1.1)  # Nominatim usage policy: max 1 request/second
-    num = re.match(r"\s*(\d+[A-Za-z]?)\b", q)
+    # house number first ("923 S Mason Rd") or after the street ("Brøndby Stadion 8, 2605 …")
+    num = re.match(r"\s*(\d+[A-Za-z]?)\b", q) or re.match(r"[^\d,]+?\s(\d+[A-Za-z]?)\s*,", q)
     for r in res or []:
         name = (r.get("display_name") or "").lower()
         if num:

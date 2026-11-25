@@ -19,8 +19,6 @@
   52.91274,
   -0.635335
  ],
- "q:au:Sydney Olympic Park": null,
- "q:au:Sydney Olympic Park, Sydney, New South Wales": null,
  "q:ca:38 Metropolitan Rd, Scarborough, ON M1R 2T6": [
   43.76838,
   -79.30002
@@ -29,12 +27,18 @@
   51.2437217,
   6.8278543
  ],
- "q:de:Borussia Düsseldorf, Deutsches Tischtennis-Zentrum, Düsseldorf": null,
+ "q:dk:Brøndby Stadion 8, 2605 Brøndby": [
+  55.645221,
+  12.418153
+ ],
+ "q:es:Pabellón Las Fuentes, Utebo (Zaragoza)": [
+  41.7114544,
+  -1.0014531
+ ],
  "q:sg:Chinese Swimming Club": [
   1.2998735,
   103.9006751
  ],
- "q:sg:Chinese Swimming Club, Amber Road, Singapore": null,
  "q:us:18761 North Frederick Avenue, Gaithersburg, MD 20879": [
   39.1650313,
   -77.2266305
@@ -43,8 +47,6 @@
   37.5097033,
   -121.9734501
  ],
- "q:us:923 S. Mason Rd, Katy, TX 77450": null,
- "q:us:923 S. Mason Rd, Suite A, Katy, TX 77450": null,
  "q:us:Houston International Table Tennis Academy, Katy, Texas": [
   29.7690161,
   -95.7498626

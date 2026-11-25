@@ -38,11 +38,14 @@ Automatic sources, each in its own function that logs and skips on failure:
 - **Table Tennis America** (Fremont CA), **Maryland Table Tennis Center** and **Paddle Palace** (Portland OR):
   club camp pages with a dated heading such as "2026 WINTER" or "2026 CHRISTMAS CAMP".
 - **TT Camps Hungary** summer camps (Budapest).
+- **Spanish federation (RFETM) camp agenda**, dated cards for camps across Spain.
+- **Bordtennis Danmark** calendar, training-camp category, through The Events Calendar's REST API.
 - **Butterfly Online** camp directory (US and Canada clubs), using only headings with a full date range and a year.
 
 If every primary source loads zero pages, the network is blocked and the script
 exits non-zero without writing anything. Sites that block scripts or have no
-reliable dates (B75, Hennebont, Urban TT, BriBar, ETTU and others) are checked by
+reliable dates (B75, Hennebont, Urban TT, BriBar, ETTU, MasterSpin and ZonaTT in Spain,
+Fokusleiren and Laksevåg in Norway, HiTT and MITTC in Malta, and others) are checked by
 hand every week, along with the public Facebook group "Table Tennis Training Camps".
 The group is used for leads only: Facebook forbids automated collection, so camps
 found there are listed only once they're confirmed on the organiser's own page.

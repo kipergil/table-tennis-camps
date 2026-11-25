@@ -93,7 +93,7 @@
   var filterStyle = "pills";
   try { filterStyle = localStorage.getItem("ttc-filter-style") === "menus" ? "menus" : "pills"; } catch (err) {}
 
-  function slug(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+  function slug(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[øØ]/g, "o").replace(/[æÆ]/g, "ae").replace(/[łŁ]/g, "l").replace(/[đĐ]/g, "d").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
   function writeURL() {
     var p = new URLSearchParams();

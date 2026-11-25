@@ -55,6 +55,23 @@ Manual source groups to check every week (sites that can't be scraped reliably):
    academy and international camps beyond the summer page. ETTU Eurotalents and
    development camps (ettu.org news). HiTT Malta (hittmalta.mt). TTPOR training camp,
    Portugal (ttpor.pt). Hungarian federation summer camps (tabletennis.hu).
+   - **Spain**: the federation's camp agenda (rfetm.es/agenda-campus) is scraped
+     automatically. Also check the camp sites it links to, for editions it hasn't
+     listed yet: MasterSpin TT, Jávea (masterspintt.com, every August); ZonaTT
+     Butterfly International Campus, Calella (every late July); Campus Internacional
+     Mar Menor, Los Alcázares (New Year and summer); CTT Valls del Nord (cttvn.club);
+     KITT / CTM El Álamo, Madrid; Utebo TM (Easter, summer and Christmas).
+   - **Norway**: Fokusleiren, Fokus BTK, Larkollen (fokusbtk.no, every year in week
+     32, ages 8 to 18, all levels); Laksevåg BTK summer camp, Alvøen, Bergen
+     (laksevagbtk.no); Norges Bordtennisforbund news (bordtennis.no/nyheter). None
+     publish a feed, and the 2027 dates aren't out yet.
+   - **Malta**: HiTT Academy, Had-Dingli (hittmalta.mt: summer programme July to
+     September, its ITX training camp, and overseas camps; no published calendar, so
+     look for news posts with dates). Malta International Table Tennis Centre (MITTC,
+     Easter, July to September and Christmas camps; Facebook page MITTCACADEMY, leads
+     only, as with the Facebook group below). Alpha TTK (alphattk.org).
+   - **Denmark**: Bordtennis Danmark's calendar of training camps is scraped
+     automatically; check club camps it doesn't list.
 3. **North America**: Kou Lei TTC (kouleittc.com), NJTTC summer and holiday
    mini-camps (njttc.org/summercamp.html, /holidaycamp.html), Paddle Palace ITTF
    coaching clinics, and the Table Tennis America International Elite Camp.
