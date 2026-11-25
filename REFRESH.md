@@ -1,6 +1,6 @@
-# Daily refresh playbook
+# Weekly refresh playbook
 
-Run every morning at 07:13 Europe/London by a scheduled Claude task. The goal is a
+Run every Friday at 07:13 Europe/London by a scheduled Claude task. The goal is a
 feed of **upcoming table tennis camps worldwide, for every age and level**, where
 every listing comes from a public page anyone can open. Never invent or guess data:
 leave a field empty rather than fill it from memory.
@@ -41,7 +41,7 @@ A camp qualifies only if all of these hold:
   weekday printed next to the date must match the year you assume.
 - It hasn't ended.
 
-Manual source groups to check every day (sites that can't be scraped reliably):
+Manual source groups to check every week (sites that can't be scraped reliably):
 
 1. **UK coaches and clubs**: Planet Table Tennis (planettabletennis.com), BriBar
    Table Tennis (bribartt.co.uk/tournaments-coaching-courses/, which blocks scripts),
@@ -81,7 +81,7 @@ Add each new camp to `data/curated.json` with every field the page supports:
   "category": "Holiday camp | Adult & club camp | High-performance camp | Residential camp | Skills clinic",
   "summary": "1-2 sentences in your own words from the page",
   "url": "the most specific organiser or booking page",
-  "country": "", "ages": "", "level": "", "price": "", "organiser": "",
+  "country": "", "city": "", "ages": "", "level": "", "price": "", "organiser": "",
   "residential": false
 }
 ```
@@ -110,7 +110,7 @@ python3 scripts/update_events.py
 python3 -c "import json; d=json.load(open('data/events.json')); print(d['count'], 'camps')"
 ```
 
-The count should be similar to yesterday's. A sudden large drop means a source broke,
+The count should be similar to last week's. A sudden large drop means a source broke,
 so investigate before committing.
 
 ## 6. Commit and push
@@ -119,7 +119,7 @@ Commit **only** `data/`:
 
 ```bash
 git add data/
-git commit -m "Daily refresh $(date +%F)"
+git commit -m "Weekly refresh $(date +%F)"
 git push origin main
 ```
 

@@ -34,7 +34,8 @@
     e._e = parseD(e.end || e.start);
     e._days = daysBetween(e._s, e._e) + 1;
     e._cat = Math.max(0, CATS.indexOf(e.category));
-    e._hay = [e.title, e.summary, e.venue, e.area, e.address, e.country, e.organiser, e.category, e.ages, e.level]
+    e.city = e.city || "";
+    e._hay = [e.title, e.summary, e.venue, e.area, e.address, e.country, e.city, e.organiser, e.category, e.ages, e.level]
       .join(" ").toLowerCase();
   });
   // ended items never show, even if the data is a day old
@@ -69,13 +70,21 @@
   function inDay(e, d) { return e._s <= d && e._e >= d; }
 
   // ---------- state + URL ----------
-  var state = { when: "all", cat: "", view: "list", q: "", m: "" };
+  var state = { when: "all", cat: "", country: "", city: "", view: "list", q: "", m: "" };
   var params = new URLSearchParams(location.search);
   if (DATE_FILTERS.some(function (f) { return f.key === params.get("when"); })) state.when = params.get("when");
   var catParam = params.get("cat");
   if (catParam) {
     var ci = CATS.map(slug).indexOf(catParam);
     if (ci >= 0) state.cat = CATS[ci];
+  }
+  if (params.get("country")) {
+    EVENTS.some(function (e) { if (e.country && slug(e.country) === params.get("country")) { state.country = e.country; return true; } });
+  }
+  if (state.country && params.get("city")) {
+    EVENTS.some(function (e) {
+      if (e.country === state.country && e.city && slug(e.city) === params.get("city")) { state.city = e.city; return true; }
+    });
   }
   if (["list", "calendar", "map"].indexOf(params.get("view")) >= 0) state.view = params.get("view");
   state.q = params.get("q") || "";
@@ -84,12 +93,14 @@
   var filterStyle = "pills";
   try { filterStyle = localStorage.getItem("ttc-filter-style") === "menus" ? "menus" : "pills"; } catch (err) {}
 
-  function slug(s) { return s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+  function slug(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
   function writeURL() {
     var p = new URLSearchParams();
     if (state.when !== "all") p.set("when", state.when);
     if (state.cat) p.set("cat", slug(state.cat));
+    if (state.country) p.set("country", slug(state.country));
+    if (state.city) p.set("city", slug(state.city));
     if (state.view !== "list") p.set("view", state.view);
     if (state.q) p.set("q", state.q);
     if (state.view === "calendar" && state.m) p.set("m", state.m);
@@ -167,6 +178,8 @@
     cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
     out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+    globe: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    pinSmall: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     chev: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
   };
@@ -180,10 +193,23 @@
     opts = opts || {};
     var when = opts.when != null ? opts.when : state.when;
     var cat = opts.cat != null ? opts.cat : state.cat;
+    var country = opts.country != null ? opts.country : state.country;
+    var city = opts.city != null ? opts.city : state.city;
     var r = range(when);
     return EVENTS.filter(function (e) {
-      return inRange(e, r) && (!cat || e.category === cat) && matchQ(e);
+      return inRange(e, r) && (!cat || e.category === cat) &&
+        (!country || e.country === country) && (!city || e.city === city) && matchQ(e);
     });
+  }
+  // {name, n} sorted by count, then name
+  function tally(list, key) {
+    var c = {};
+    list.forEach(function (e) { if (e[key]) c[e[key]] = (c[e[key]] || 0) + 1; });
+    return Object.keys(c).map(function (k) { return { name: k, n: c[k] }; })
+      .sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+  }
+  function placeName(country) {
+    return /^(United Kingdom|United States|Netherlands|Philippines|Czech Republic)$/.test(country) ? "the " + country : country;
   }
 
   // ---------- header ----------
@@ -235,7 +261,35 @@
           '<span class="x" aria-hidden="true">✕</span>' +
           (on ? '<span class="visually-hidden">(selected, press to clear)</span>' : "") + '</button>';
       });
-      box.innerHTML = h + "</div>";
+      h += '</div>';
+      var countries = tally(filtered({ country: "", city: "" }), "country");
+      if (state.country && !countries.some(function (c) { return c.name === state.country; })) countries.push({ name: state.country, n: 0 });
+      h += '<div class="chips" role="group" aria-label="Country">';
+      countries.forEach(function (c) {
+        var on = state.country === c.name;
+        h += '<button type="button" class="chip place" data-country="' + esc(c.name) + '" aria-pressed="' + on + '">' +
+          ICON.globe + '<span>' + esc(c.name) + '</span><span class="count">' + c.n + '</span>' +
+          '<span class="x" aria-hidden="true">✕</span>' +
+          (on ? '<span class="visually-hidden">(selected, press to clear)</span>' : "") + '</button>';
+      });
+      h += '</div>';
+      if (state.country) {
+        var cities = tally(filtered({ city: "" }), "city");
+        if (state.city && !cities.some(function (c) { return c.name === state.city; })) cities.push({ name: state.city, n: 0 });
+        if (cities.length) {
+          h += '<div class="chips cities" role="group" aria-label="City in ' + esc(state.country) + '">' +
+            '<span class="chips-label">Cities in ' + esc(placeName(state.country)) + '</span>';
+          cities.forEach(function (c) {
+            var on = state.city === c.name;
+            h += '<button type="button" class="chip place" data-city="' + esc(c.name) + '" aria-pressed="' + on + '">' +
+              ICON.pinSmall + '<span>' + esc(c.name) + '</span><span class="count">' + c.n + '</span>' +
+              '<span class="x" aria-hidden="true">✕</span>' +
+              (on ? '<span class="visually-hidden">(selected, press to clear)</span>' : "") + '</button>';
+          });
+          h += '</div>';
+        }
+      }
+      box.innerHTML = h;
     } else {
       var ci = CATS.indexOf(state.cat);
       var m = '<div class="menus">';
@@ -252,6 +306,24 @@
         m += '<option value="' + esc(c) + '"' + (state.cat === c ? " selected" : "") + '>' + esc(c) + ' (' + catCounts[i] + ')</option>';
       });
       m += '</select>' + ICON.chev + '<button type="button" class="icon-btn" data-clear="cat" aria-label="Clear type filter">' + ICON.x + '</button></div>';
+      var base = filtered({ country: "", city: "" });
+      m += '<div class="menu place-menu' + (state.country ? " is-set" : "") + '"><span class="mdot" aria-hidden="true"></span>' +
+        '<label for="place-sel" class="visually-hidden">Where</label><select id="place-sel">';
+      m += '<option value="">Anywhere (' + base.length + ')</option>';
+      var cur = state.city ? "t:" + state.country + "|" + state.city : state.country ? "c:" + state.country : "";
+      var ctl = tally(base, "country");
+      if (state.country && !ctl.some(function (c) { return c.name === state.country; })) ctl.push({ name: state.country, n: 0 });
+      ctl.forEach(function (c) {
+        var v = "c:" + c.name;
+        m += '<optgroup label="' + esc(c.name) + '">' +
+          '<option value="' + esc(v) + '"' + (cur === v ? " selected" : "") + '>All of ' + esc(placeName(c.name)) + ' (' + c.n + ')</option>';
+        tally(base.filter(function (e) { return e.country === c.name; }), "city").forEach(function (t) {
+          var tv = "t:" + c.name + "|" + t.name;
+          m += '<option value="' + esc(tv) + '"' + (cur === tv ? " selected" : "") + '>' + esc(t.name) + ', ' + esc(c.name) + ' (' + t.n + ')</option>';
+        });
+        m += '</optgroup>';
+      });
+      m += '</select>' + ICON.chev + '<button type="button" class="icon-btn" data-clear="place" aria-label="Clear place filter">' + ICON.x + '</button></div>';
       box.innerHTML = m + "</div>";
     }
   }
@@ -259,13 +331,16 @@
   // ---------- heading ----------
   function renderHeading(list) {
     var noun = state.cat ? CAT_PLURAL[state.cat] || state.cat.toLowerCase() + "s" : "camps";
+    var where = state.city ? " in " + state.city + (state.city !== state.country ? ", " + state.country : "")
+      : state.country ? " in " + placeName(state.country) : "";
+    noun += where;
     var Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
     var t;
     switch (state.when) {
       case "week": t = Noun + " this week"; break;
       case "nextweek": t = Noun + " next week"; break;
       case "month": t = Noun + " this month"; break;
-      case "nextmonth": t = Noun + " in " + MONTHS[(TODAY.getMonth() + 1) % 12]; break;
+      case "nextmonth": t = Noun + (where ? " during " : " in ") + MONTHS[(TODAY.getMonth() + 1) % 12]; break;
       case "later": t = Noun + " from " + range("later")[0].getDate() + " " + MONTHS[range("later")[0].getMonth()]; break;
       default: t = "All upcoming " + noun;
     }
@@ -505,6 +580,13 @@
       else window.addEventListener("load", function () { renderMap(filtered(), pendingFocus); }, { once: true });
       pendingFocus = null;
     }
+    // keep a selected chip visible inside its horizontally scrolling row
+    document.querySelectorAll(".chips").forEach(function (row) {
+      var on = row.querySelector('[aria-pressed="true"]');
+      if (!on) return;
+      var l = on.offsetLeft - row.offsetLeft, r = l + on.offsetWidth;
+      if (l < row.scrollLeft || r > row.scrollLeft + row.clientWidth) row.scrollLeft = Math.max(0, l - 16);
+    });
     var qc = document.getElementById("q-clear");
     qc.hidden = !state.q;
     writeURL();
@@ -555,13 +637,32 @@
       return;
     }
     if (t.dataset.clear) {
-      if (t.dataset.clear === "when") { state.when = "all"; state.m = ""; } else state.cat = "";
+      if (t.dataset.clear === "when") { state.when = "all"; state.m = ""; }
+      else if (t.dataset.clear === "place") { state.country = ""; state.city = ""; }
+      else state.cat = "";
       render();
-      var sel = document.getElementById(t.dataset.clear === "when" ? "when-sel" : "cat-sel");
+      var sel = document.getElementById({ when: "when-sel", cat: "cat-sel", place: "place-sel" }[t.dataset.clear]);
       if (sel) sel.focus();
       return;
     }
-    if (t.dataset.reset) { state.when = "all"; state.cat = ""; state.q = ""; qInput.value = ""; render(); return; }
+    if (t.dataset.reset) { state.when = "all"; state.cat = ""; state.country = ""; state.city = ""; state.q = ""; qInput.value = ""; render(); return; }
+    if (t.dataset.country !== undefined && t.matches(".chip")) {
+      var co = t.dataset.country;
+      state.country = state.country === co ? "" : co;
+      state.city = "";
+      render();
+      var b3 = document.querySelector('.chip[data-country="' + co.replace(/"/g, '\\"') + '"]');
+      if (b3) b3.focus();
+      return;
+    }
+    if (t.dataset.city !== undefined && t.matches(".chip")) {
+      var ct = t.dataset.city;
+      state.city = state.city === ct ? "" : ct;
+      render();
+      var b4 = document.querySelector('.chip[data-city="' + ct.replace(/"/g, '\\"') + '"]');
+      if (b4) b4.focus();
+      return;
+    }
     if (t.dataset.pin) {
       pendingFocus = +t.dataset.pin;
       state.view = "map";
@@ -591,6 +692,14 @@
   document.addEventListener("change", function (ev) {
     if (ev.target.id === "when-sel") { state.when = ev.target.value; state.m = ""; calSelected = null; render(); document.getElementById("when-sel").focus(); }
     if (ev.target.id === "cat-sel") { state.cat = ev.target.value; render(); document.getElementById("cat-sel").focus(); }
+    if (ev.target.id === "place-sel") {
+      var v = ev.target.value;
+      if (!v) { state.country = ""; state.city = ""; }
+      else if (v.indexOf("c:") === 0) { state.country = v.slice(2); state.city = ""; }
+      else { var parts = v.slice(2).split("|"); state.country = parts[0]; state.city = parts.slice(1).join("|"); }
+      render();
+      document.getElementById("place-sel").focus();
+    }
   });
   var lastPhone = window.matchMedia("(max-width: 720px)").matches;
   window.addEventListener("resize", function () {
