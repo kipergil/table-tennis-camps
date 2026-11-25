@@ -93,7 +93,7 @@
   var filterStyle = "pills";
   try { filterStyle = localStorage.getItem("ttc-filter-style") === "menus" ? "menus" : "pills"; } catch (err) {}
 
-  function slug(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+  function slug(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[øØ]/g, "o").replace(/[æÆ]/g, "ae").replace(/[łŁ]/g, "l").replace(/[đĐ]/g, "d").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
   function writeURL() {
     var p = new URLSearchParams();
@@ -277,8 +277,7 @@
         var cities = tally(filtered({ city: "" }), "city");
         if (state.city && !cities.some(function (c) { return c.name === state.city; })) cities.push({ name: state.city, n: 0 });
         if (cities.length) {
-          h += '<div class="chips cities" role="group" aria-label="City in ' + esc(state.country) + '">' +
-            '<span class="chips-label">Cities in ' + esc(placeName(state.country)) + '</span>';
+          h += '<div class="chips cities" role="group" aria-label="Cities in ' + esc(placeName(state.country)) + '">';
           cities.forEach(function (c) {
             var on = state.city === c.name;
             h += '<button type="button" class="chip place" data-city="' + esc(c.name) + '" aria-pressed="' + on + '">' +
