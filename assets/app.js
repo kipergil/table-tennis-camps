@@ -184,6 +184,26 @@
     chev: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
   };
 
+  // ---------- flags (flag-icons SVGs, decorative: the country is always written out) ----------
+  var COUNTRY_CODES = {
+    "Argentina": "ar", "Australia": "au", "Austria": "at", "Belgium": "be", "Brazil": "br",
+    "Bulgaria": "bg", "Canada": "ca", "Chile": "cl", "China": "cn", "Croatia": "hr", "Cyprus": "cy",
+    "Czech Republic": "cz", "Czechia": "cz", "Denmark": "dk", "England": "gb-eng", "Estonia": "ee",
+    "Finland": "fi", "France": "fr", "Germany": "de", "Greece": "gr", "Hong Kong": "hk",
+    "Hungary": "hu", "Iceland": "is", "India": "in", "Ireland": "ie", "Israel": "il", "Italy": "it",
+    "Japan": "jp", "Latvia": "lv", "Lithuania": "lt", "Luxembourg": "lu", "Malaysia": "my",
+    "Malta": "mt", "Mexico": "mx", "Netherlands": "nl", "New Zealand": "nz", "Norway": "no",
+    "Philippines": "ph", "Poland": "pl", "Portugal": "pt", "Qatar": "qa", "Romania": "ro",
+    "Scotland": "gb-sct", "Serbia": "rs", "Singapore": "sg", "Slovakia": "sk", "Slovenia": "si",
+    "South Africa": "za", "South Korea": "kr", "Spain": "es", "Sweden": "se", "Switzerland": "ch",
+    "Taiwan": "tw", "Thailand": "th", "Turkey": "tr", "Ukraine": "ua", "United Arab Emirates": "ae",
+    "United Kingdom": "gb", "United States": "us", "Wales": "gb-wls"
+  };
+  function flag(country) {
+    var c = COUNTRY_CODES[country];
+    return c ? '<span class="fi fi-' + c + ' flag" aria-hidden="true"></span>' : "";
+  }
+
   // ---------- filtering ----------
   function matchQ(e) {
     if (!state.q) return true;
@@ -268,7 +288,7 @@
       countries.forEach(function (c) {
         var on = state.country === c.name;
         h += '<button type="button" class="chip place" data-country="' + esc(c.name) + '" aria-pressed="' + on + '">' +
-          ICON.globe + '<span>' + esc(c.name) + '</span><span class="count">' + c.n + '</span>' +
+          (flag(c.name) || ICON.globe) + '<span>' + esc(c.name) + '</span><span class="count">' + c.n + '</span>' +
           '<span class="x" aria-hidden="true">✕</span>' +
           (on ? '<span class="visually-hidden">(selected, press to clear)</span>' : "") + '</button>';
       });
@@ -366,7 +386,15 @@
   // ---------- list ----------
   function rowHTML(e, opts) {
     opts = opts || {};
-    var place = [e.venue, e.area, e.country].filter(Boolean);
+    // drop repeats such as "Amber Road, Singapore, Singapore"
+    var seen = {};
+    var place = [];
+    [e.venue, e.area, e.country].forEach(function (x) {
+      (x || "").split(",").forEach(function (part) {
+        var k = part.trim().toLowerCase();
+        if (k && !seen[k]) { seen[k] = true; place.push(part.trim()); }
+      });
+    });
     // avoid repeating the country when the area already names it
     var placeTxt = place.join(", ");
     var facts = [];
@@ -382,7 +410,7 @@
       '</div>' +
       '<div class="row-body">' +
         '<h3 class="row-title"><a href="' + esc(tagged(e.url)) + '" target="_blank" rel="noopener">' + esc(e.title) + '</a></h3>' +
-        (placeTxt ? '<p class="row-venue"><a href="' + esc(mapsURL(e)) + '" target="_blank" rel="noopener" aria-label="' + esc(placeTxt) + ' on Google Maps">' + esc(placeTxt) + '</a></p>' : "") +
+        (placeTxt ? '<p class="row-venue">' + flag(e.country) + '<a href="' + esc(mapsURL(e)) + '" target="_blank" rel="noopener" aria-label="' + esc(placeTxt) + ' on Google Maps">' + esc(placeTxt) + '</a></p>' : "") +
         '<p class="row-span">' + (e.online ? "Online, " : "") + esc(spanText(e)) + '</p>' +
         (e.summary ? '<p class="row-summary">' + esc(e.summary) + '</p>' : "") +
         (facts.length ? '<ul class="facts">' + facts.join("") + '</ul>' : "") +
@@ -540,7 +568,7 @@
       });
       var mk = L.marker([evs[0].lat, evs[0].lng], { icon: icon, count: evs.length, title: (evs[0].venue || evs[0].area || "Venue") + ", " + plural(evs.length, "camp", "camps"), keyboard: true });
       var name = evs[0].venue || evs[0].area || "";
-      var pop = '<p class="pop-venue">' + esc(name) + '</p>' + evs.map(function (e) {
+      var pop = '<p class="pop-venue">' + flag(evs[0].country) + esc(name) + '</p>' + evs.map(function (e) {
         return '<div class="pop-item cat-' + e._cat + '"><span class="tag">' + esc(e.category) + '</span>' +
           '<h4>' + esc(e.title) + '</h4><p>' + esc(spanText(e)) + (e.time ? ", from " + esc(e.time) : "") + '</p>' +
           '<div class="pop-actions"><a class="btn primary" href="' + esc(tagged(e.url)) + '" target="_blank" rel="noopener">View</a>' +
