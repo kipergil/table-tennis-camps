@@ -43,7 +43,10 @@ Automatic sources, each in its own function that logs and skips on failure:
 If every primary source loads zero pages, the network is blocked and the script
 exits non-zero without writing anything. Sites that block scripts or have no
 reliable dates (B75, Hennebont, Urban TT, BriBar, ETTU and others) are checked by
-hand every week: see `REFRESH.md`.
+hand every week, along with the public Facebook group "Table Tennis Training Camps".
+The group is used for leads only: Facebook forbids automated collection, so camps
+found there are listed only once they're confirmed on the organiser's own page.
+See `REFRESH.md`.
 
 Relevance: a table tennis keyword *and* a camp keyword must appear, and an
 "irrelevant" regex drops social sessions, leagues, pickleball, padel and so on.

@@ -66,7 +66,18 @@ Manual source groups to check every week (sites that can't be scraped reliably):
 5. **Camps already in curated.json**: HITTA (Katy, TX), GTTC Academy (Toronto),
    Chinese Swimming Club (Singapore), and Table Tennis Australia's National Hopes
    Pathways Camps. Check that they're still on and look for new dates.
-6. **Web search**, rotating through queries such as `table tennis camp <month> <year>`,
+6. **Facebook group "Table Tennis Training Camps"**
+   (facebook.com/groups/1379031555556213/), a public group where coaches and clubs
+   advertise camps. Use it for **leads only**:
+   - Open it in a normal browser view and read only the few recent posts shown to
+     logged-out visitors. Don't log in, don't scroll or page through it, and never
+     script it: Facebook's robots.txt forbids automated collection without written
+     permission.
+   - For each camp mentioned, find the organiser's own public page (club site,
+     booking page or federation calendar) and confirm the dates, with year, there.
+   - List the camp with that page as its `url`, never the Facebook post. If no such
+     page exists yet, skip it and check again next week.
+7. **Web search**, rotating through queries such as `table tennis camp <month> <year>`,
    `table tennis training camp <year>`, `Tischtennis Camp <year>`,
    `stage tennis de table <year>` and `bordtennisläger <year>`.
 
