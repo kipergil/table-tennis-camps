@@ -1,0 +1,39 @@
+{
+ "pc:CB1 1NA": [
+  52.201212,
+  0.130393
+ ],
+ "pc:CB21 5BS": [
+  52.179279,
+  0.223514
+ ],
+ "pc:CB3 0AS": [
+  52.209296,
+  0.086064
+ ],
+ "pc:CM17 0EY": [
+  51.783486,
+  0.140985
+ ],
+ "pc:NG31 9AP": [
+  52.91274,
+  -0.635335
+ ],
+ "q:au:Sydney Olympic Park": null,
+ "q:au:Sydney Olympic Park, Sydney, New South Wales": null,
+ "q:ca:38 Metropolitan Rd, Scarborough, ON M1R 2T6": [
+  43.76838,
+  -79.30002
+ ],
+ "q:sg:Chinese Swimming Club": [
+  1.2998735,
+  103.9006751
+ ],
+ "q:sg:Chinese Swimming Club, Amber Road, Singapore": null,
+ "q:us:923 S. Mason Rd, Katy, TX 77450": null,
+ "q:us:923 S. Mason Rd, Suite A, Katy, TX 77450": null,
+ "q:us:Houston International Table Tennis Academy, Katy, Texas": [
+  29.7690161,
+  -95.7498626
+ ]
+}
