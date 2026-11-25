@@ -17,12 +17,15 @@ git checkout main && git pull --ff-only origin main
 python3 scripts/update_events.py
 ```
 
-- It takes about 4 to 5 minutes (Eventbrite is paged politely, and Nominatim is
-  limited to 1 request a second).
-- If it exits non-zero, Eventbrite loaded zero pages (blocked network). **Stop.**
-  Don't hand-edit events.json and don't commit. Report the failure.
-- Read the `[update]` log lines. If Cooke & Deaton or Lodziak report 0 items when
-  they used to report several, check whether the page layout changed.
+- It takes about a minute. Automatic sources: Cooke & Deaton, Tom Lodziak,
+  Borussia Düsseldorf (TT-Schule courses and kids' holiday camps), Table Tennis
+  America, Maryland Table Tennis Center, Paddle Palace, TT Camps Hungary and the
+  Butterfly Online directory.
+- If it exits non-zero, every primary source (Cooke & Deaton, Lodziak, Borussia
+  TT-Schule) loaded zero pages, which means the network is blocked. **Stop.** Don't
+  hand-edit events.json and don't commit. Report the failure.
+- Read the `[update]` log lines. If a source reports 0 items when it used to report
+  several, open its page and check whether the layout changed.
 
 ## 3. Look for new camps by hand
 
@@ -38,26 +41,34 @@ A camp qualifies only if all of these hold:
   weekday printed next to the date must match the year you assume.
 - It hasn't ended.
 
-Manual source groups to check every day:
+Manual source groups to check every day (sites that can't be scraped reliably):
 
-1. **Camp directories**: Butterfly Online camps page (butterflyonline.com/we-are-butterfly/camps-classes/),
-   ActivityHero table tennis camps (US), Kindaling Sportcamps (DE).
-2. **Club booking platforms**: HelloAsso "stage tennis de table" (FR), Jotform and
-   Tally camp registration forms that come up in search, ClubSpark.
-3. **National federations and continental bodies**: Table Tennis England, Table Tennis
-   Scotland, Table Tennis Wales, Table Tennis Ireland, USA Table Tennis, Table Tennis
-   Canada, Table Tennis Australia (events2), Table Tennis New Zealand, DTTB and the
-   German state associations, FFTT and its leagues, SBTF (Sweden), STTA (Singapore),
-   HKTTA (Hong Kong), ETTU news.
-4. **Academies and coaches that run regular camps**: HITTA (Katy TX), GTTC Academy
-   (Toronto), Fremont Table Tennis Academy, PongPlanet, Table Tennis America, Atlanta
-   International TT Academy, BAPPA, Champion Star, Princeton Pong, Cooke & Deaton, Tom
-   Lodziak, Werner Schlager Academy, Chinese Swimming Club (SG).
-5. **Web search**, rotating through queries such as: `table tennis camp <month> <year>`,
-   `table tennis winter camp`, `table tennis summer camp <year>`,
-   `table tennis training camp registration`, `ping pong camp kids`,
-   `Tischtennis Camp <year>`, `stage tennis de table vacances <year>`,
-   `bordtennisläger <year>`, `campus tenis de mesa <year>`.
+1. **UK coaches and clubs**: Planet Table Tennis (planettabletennis.com), BriBar
+   Table Tennis (bribartt.co.uk/tournaments-coaching-courses/, which blocks scripts),
+   EBATT (ebatt.co.uk), and new dates on Cooke & Deaton and Tom Lodziak that the
+   script missed.
+2. **Europe**: B75 International Camp, Hirtshals, Denmark (b75.dk/arrangementer/sommerlejr,
+   every July; registration at b75.nemtilmeld.dk). Ping Center GV Hennebont, France
+   (pingcenter-gvhtt.com/stages and its 2026–27 PDF calendar; the booking API can't
+   confirm which weeks run). Urban Table Tennis international camps
+   (urbantabletennis.com/en/elite/international-camps). TT Camps Hungary, for Eger
+   academy and international camps beyond the summer page. ETTU Eurotalents and
+   development camps (ettu.org news). HiTT Malta (hittmalta.mt). TTPOR training camp,
+   Portugal (ttpor.pt). Hungarian federation summer camps (tabletennis.hu).
+3. **North America**: Kou Lei TTC (kouleittc.com), NJTTC summer and holiday
+   mini-camps (njttc.org/summercamp.html, /holidaycamp.html), Paddle Palace ITTF
+   coaching clinics, and the Table Tennis America International Elite Camp.
+4. **Directories**: Table Tennis Coach UK's list of camps in the UK and Europe
+   (tabletenniscoach.me.uk/table-tennis-camps-in-uk-and-europe/), Butterfly Online
+   camps and classes (butterflyonline.com/we-are-butterfly/camps-classes/, for clubs
+   whose dates the script couldn't parse), and Expert Table Tennis camp reviews
+   (experttabletennis.com).
+5. **Camps already in curated.json**: HITTA (Katy, TX), GTTC Academy (Toronto),
+   Chinese Swimming Club (Singapore), and Table Tennis Australia's National Hopes
+   Pathways Camps. Check that they're still on and look for new dates.
+6. **Web search**, rotating through queries such as `table tennis camp <month> <year>`,
+   `table tennis training camp <year>`, `Tischtennis Camp <year>`,
+   `stage tennis de table <year>` and `bordtennisläger <year>`.
 
 Add each new camp to `data/curated.json` with every field the page supports:
 

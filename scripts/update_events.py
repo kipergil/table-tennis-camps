@@ -190,12 +190,6 @@ CAT_RULES = [
         r"multi[\s-]?ball|serves?|returning serves|technique day", re.I)),
 ]
 
-FORMAT_HINTS = {
-    "Class, Training, or Workshop": "Skills clinic",
-    "Camp, Trip, or Retreat": "Holiday camp",
-}
-
-
 def categorise(title, summary="", fmt="", days=1):
     blob = f"{title} {summary}"
     # strong wording on the title beats everything
@@ -205,12 +199,8 @@ def categorise(title, summary="", fmt="", days=1):
     for cat, rx in CAT_RULES:
         if rx.search(blob):
             return cat
-    if fmt in FORMAT_HINTS:
-        hint = FORMAT_HINTS[fmt]
-        if hint == "Skills clinic" and days > 1:
-            return "Adult & club camp"
-        return hint
     return "Skills clinic" if days <= 1 else "Adult & club camp"
+
 
 
 def blank(**kw):
@@ -225,122 +215,6 @@ def blank(**kw):
 # --------------------------------------------------------------------------
 # automatic sources
 # --------------------------------------------------------------------------
-
-EB_PLACES = [
-    ("www.eventbrite.co.uk", "united-kingdom", "United Kingdom"),
-    ("www.eventbrite.ie", "ireland", "Ireland"),
-    ("www.eventbrite.com", "united-states", "United States"),
-    ("www.eventbrite.ca", "canada", "Canada"),
-    ("www.eventbrite.com.au", "australia", "Australia"),
-    ("www.eventbrite.co.nz", "new-zealand", "New Zealand"),
-    ("www.eventbrite.sg", "singapore", "Singapore"),
-    ("www.eventbrite.de", "germany", "Germany"),
-    ("www.eventbrite.nl", "netherlands", "Netherlands"),
-    ("www.eventbrite.fr", "france", "France"),
-    ("www.eventbrite.es", "spain", "Spain"),
-    ("www.eventbrite.com", "online", ""),
-]
-EB_QUERIES = ["table-tennis-camp", "table-tennis-training-camp", "ping-pong-camp"]
-EB_PAGES = 2
-
-
-def _eb_server_data(page_html):
-    marker = "window.__SERVER_DATA__ = "
-    i = page_html.find(marker)
-    if i < 0:
-        return None
-    try:
-        return json.JSONDecoder().raw_decode(page_html, i + len(marker))[0]
-    except ValueError:
-        return None
-
-
-def _eb_page(url):
-    """Fetch one search page, retrying an empty one (5 s, then 10 s)."""
-    for wait in (0, 5, 10):
-        if wait:
-            time.sleep(wait)
-        try:
-            data = _eb_server_data(fetch(url))
-        except (urllib.error.URLError, OSError, ValueError) as e:
-            log("eventbrite fetch failed", url, e)
-            data = None
-        if data is None:
-            continue
-        ev = (data.get("search_data") or {}).get("events") or {}
-        results = ev.get("results") or []
-        if results:
-            return results, ev.get("pagination") or {}
-    return None, {}
-
-
-def source_eventbrite():
-    items, loaded = [], 0
-    for host, slug, country in EB_PLACES:
-        for q in EB_QUERIES:
-            for page in range(1, EB_PAGES + 1):
-                url = f"https://{host}/d/{slug}/{q}/?page={page}"
-                results, pag = _eb_page(url)
-                if results is None:
-                    break
-                loaded += 1
-                for r in results:
-                    it = _eb_item(r, country)
-                    if it:
-                        items.append(it)
-                if page >= (pag.get("page_count") or 1):
-                    break
-                time.sleep(1)
-    STATS["eventbrite_pages"] = loaded
-    log(f"eventbrite: {loaded} pages, {len(items)} relevant")
-    return items, loaded
-
-
-def _eb_item(r, country):
-    title = clean(r.get("name"))
-    summary = clean(r.get("summary"))
-    if r.get("is_cancelled") or not is_relevant(title, summary):
-        return None
-    start, end = r.get("start_date"), r.get("end_date") or r.get("start_date")
-    if not start:
-        return None
-    fmt = ""
-    for t in r.get("tags") or []:
-        if t.get("prefix") == "EventbriteFormat":
-            fmt = t.get("display_name", "")
-    v = r.get("primary_venue") or {}
-    a = v.get("address") or {}
-    online = bool(r.get("is_online_event"))
-    days = (dt.date.fromisoformat(end) - dt.date.fromisoformat(start)).days + 1
-    addr = ", ".join(x for x in [a.get("address_1"), a.get("address_2"),
-                                 a.get("city"), a.get("postal_code")] if x)
-    cc = (a.get("country") or "")
-    lat = a.get("latitude")
-    lng = a.get("longitude")
-    return blank(
-        id="eb-" + str(r.get("id")),
-        title=title, start=start, end=end, time=r.get("start_time") or "",
-        venue=clean(v.get("name")), area=clean(a.get("city") or a.get("localized_area_display")),
-        address=addr,
-        lat=float(lat) if lat not in (None, "") else None,
-        lng=float(lng) if lng not in (None, "") else None,
-        online=online,
-        category=categorise(title, summary, fmt, days),
-        summary=summarise(summary), url=r.get("url") or "",
-        source="eventbrite", country=_country_name(cc) or country,
-        organiser="",
-    )
-
-
-COUNTRY_CODES = {"GB": "United Kingdom", "US": "United States", "CA": "Canada",
-                 "AU": "Australia", "NZ": "New Zealand", "IE": "Ireland",
-                 "SG": "Singapore", "DE": "Germany", "NL": "Netherlands",
-                 "FR": "France", "ES": "Spain"}
-
-
-def _country_name(cc):
-    return COUNTRY_CODES.get((cc or "").upper(), "")
-
 
 # --- Cooke & Deaton (UK coaching school; clean card HTML) -----------------
 
@@ -556,10 +430,269 @@ def source_butterfly():
     return items, 1
 
 
+# --- Borussia Düsseldorf (DE) ---------------------------------------------
+# Both feeds are structured: the TT-Schule embeds its course list as JSON
+# (window.ttschuleData) and the kids' holiday camps are a plain booking table.
+
+BOR_VENUE = dict(venue="Borussia Düsseldorf",
+                 area="Deutsches Tischtennis-Zentrum, Düsseldorf",
+                 address="", country="Germany",
+                 organiser="Borussia Düsseldorf")
+TTS_URL = "https://tt-schule.borussia-duesseldorf.com/kurse/kurstermine-anmeldung"
+TTS_INFO = "https://tt-schule.borussia-duesseldorf.com/"
+BFC_URL = "https://www.borussia-duesseldorf.com/applications/feriencamp/"
+BFC_INFO = "https://www.borussia-duesseldorf.com/verein/ihr-teamevent/feriencamps-fuer-kinder"
+
+
+def _de_date(s):
+    m = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](20\d\d)", s.strip())
+    return confirm_date(m.group(1), m.group(2), m.group(3)) if m else None
+
+
+def _euro(p):
+    try:
+        v = float(p)
+    except (TypeError, ValueError):
+        return ""
+    return f"€{v:.0f}" if v.is_integer() else f"€{v:.2f}"
+
+
+def source_borussia_ttschule():
+    items = []
+    try:
+        page = fetch(TTS_URL)
+    except (urllib.error.URLError, OSError) as e:
+        log("borussia tt-schule failed", e)
+        return items, 0
+    marker = "window.ttschuleData = "
+    i = page.find(marker)
+    if i < 0:
+        log("borussia tt-schule: data block not found")
+        return items, 0
+    try:
+        data = json.JSONDecoder().raw_decode(page, i + len(marker))[0]
+    except ValueError:
+        return items, 0
+    for k in data.get("kurse") or []:
+        d1, d2 = _de_date(k.get("dateStart", "")), _de_date(k.get("dateEnd", ""))
+        rates = list((k.get("rates") or {}).values())
+        open_rates = [r for r in rates if r.get("availability") != 0]
+        if not d1 or not d2 or not open_rates:
+            continue  # fully booked: the public can't sign up
+        feats = clean(k.get("features"))
+        days = (d2 - d1).days + 1
+        title = f"Borussia Düsseldorf TT-Schule {days}-day course"
+        extras = []
+        if re.search(r"damenkurs", feats, re.I):
+            title += " for women"
+            extras.append("A women-only course.")
+        if re.search(r"heimspiel", feats, re.I):
+            extras.append("Includes a ticket to a Borussia home match.")
+        no_night = [r for r in open_rates if str(r.get("isOvernight")) == "0"]
+        night = [r for r in open_rates if str(r.get("isOvernight")) == "1"]
+        price = []
+        if no_night:
+            price.append(_euro(no_night[0]["price"]) + " without overnight stay")
+        if night:
+            price.append(_euro(night[0]["price"]) + " with overnight stay")
+        summary = ("Coaching course for amateur players at the German Table Tennis Centre, "
+                   "home of Borussia Düsseldorf's table tennis school. " + " ".join(extras)).strip()
+        items.append(blank(
+            id="bor-tts-" + re.sub(r"\W+", "-", k.get("courseId", "")) + "-" + d1.isoformat(),
+            title=title, start=d1.isoformat(), end=d2.isoformat(),
+            category="Residential camp" if night and not no_night else "Adult & club camp",
+            summary=summary, url=TTS_URL, source="borussia",
+            ages="Juniors and adults", level="All levels",
+            price=", ".join(price), residential=bool(night), **BOR_VENUE,
+        ))
+    log(f"borussia tt-schule: {len(items)} bookable courses")
+    return items, 1
+
+
+def source_borussia_feriencamp():
+    items = []
+    try:
+        page = fetch(BFC_URL)
+    except (urllib.error.URLError, OSError) as e:
+        log("borussia feriencamp failed", e)
+        return items, 0
+    seasons = {"Neujahresferiencamp": "New Year", "Osterferiencamp": "Easter",
+               "Sommerferiencamp": "Summer", "Herbstferiencamp": "Autumn",
+               "Weihnachtsferiencamp": "Christmas", "Pfingstferiencamp": "Whitsun"}
+    for block in re.split(r'<div class="kurs">', page)[1:]:
+        def field(cls):
+            m = re.search(r'<div class="' + cls + r'">(.*?)</div>', block, re.S)
+            return clean(re.sub(r"<[^>]+>", " ", m.group(1))) if m else ""
+        dm = re.search(r"(\d{2}\.\d{2}\.20\d\d)\s*-\s*(\d{2}\.\d{2}\.20\d\d)", field("kurs_datum"))
+        pm = re.search(r"(\d+)", field("kurs_plaetze"))
+        if not dm or not pm or int(pm.group(1)) == 0:
+            continue  # unparseable or fully booked
+        d1, d2 = _de_date(dm.group(1)), _de_date(dm.group(2))
+        if not d1 or not d2:
+            continue
+        name = re.sub(r"^Kurs-Nummer:\s*", "", field("kurs_nummer"))
+        season = seasons.get(re.sub(r"\s*\d+$", "", name), "")
+        price = re.search(r"(\d+)", field("kurs_preis"))
+        items.append(blank(
+            id="bor-fc-" + d1.isoformat(),
+            title=f"Borussia Düsseldorf {season + ' ' if season else ''}holiday camp for kids",
+            start=d1.isoformat(), end=d2.isoformat(), time="08:30",
+            category="Holiday camp",
+            summary=("Table tennis and movement holiday camp for 8 to 12-year-olds with little or no club "
+                     "experience: at least two hours of table tennis a day plus games, with lunch included."),
+            url=BFC_INFO, source="borussia", ages="8 to 12", level="Beginner",
+            price="€" + price.group(1) if price else "",
+            **BOR_VENUE,
+        ))
+    log(f"borussia feriencamp: {len(items)} bookable camps")
+    return items, 1
+
+
+# --- club pages with a dated heading ("2026 WINTER", "2026 CHRISTMAS CAMP") ---
+
+MON = r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?"
+RANGE_RX = re.compile(
+    MON + r"\s+(\d{1,2})(?:st|nd|rd|th)?"
+    r"((?:\s*(?:,|and|&|-|–|to)\s*(?:" + MON + r"\s+)?\d{1,2}(?:st|nd|rd|th)?)+)", re.I)
+HEAD_RX = re.compile(r"\b(20\d\d)\b", re.I)
+HEAD_WORDS = re.compile(r"camp|winter|summer|spring|christmas|holiday|break|easter|thanksgiving", re.I)
+STOP_RX = re.compile(r"previous camps|past camps|testimonials", re.I)
+
+
+def _dated_ranges(text):
+    """Yield (heading, start, end) for date ranges under a heading with a year."""
+    lines = text.split("\n")
+    out, seen = [], set()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        hm = HEAD_RX.search(line)
+        if hm and HEAD_WORDS.search(line + " " + " ".join(lines[i + 1:i + 2])) and len(line) < 70 \
+                and not RANGE_RX.search(line):
+            year = int(hm.group(1))
+            heading = line
+            for j in range(i + 1, min(i + 30, len(lines))):
+                if STOP_RX.search(lines[j]):
+                    break
+                if j > i + 1 and HEAD_RX.search(lines[j]) and HEAD_WORDS.search(lines[j]) \
+                        and len(lines[j]) < 70 and not RANGE_RX.search(lines[j]):
+                    break
+                # "July 25 – August 1 and August 1 – August 8": split separate ranges
+                parts = re.split(r"\s+and\s+(?=" + MON + r"\s+\d)|\s*/\s*|;", lines[j], flags=re.I)
+                for m in (mm for part in parts if part for mm in RANGE_RX.finditer(part)):
+                    m1, day1, tail = month_num(m.group(1)[:3]), m.group(2), m.group(3)
+                    toks = re.findall(MON + r"|\d{1,2}", tail, re.I)
+                    m2, day2 = m1, day1
+                    for tk in re.finditer(MON + r"|(\d{1,2})", tail, re.I):
+                        if tk.group(0)[0].isalpha():
+                            m2 = month_num(tk.group(0)[:3])
+                        else:
+                            day2 = tk.group(0)
+                    del toks
+                    d1 = confirm_date(day1, m1, year)
+                    y2 = year + 1 if m2 < m1 else year
+                    d2 = confirm_date(day2, m2, y2)
+                    if not d1 or not d2 or not (0 < (d2 - d1).days <= 21):
+                        continue
+                    if (d1, d2) in seen:
+                        continue
+                    seen.add((d1, d2))
+                    out.append((heading, d1, d2))
+        i += 1
+    return out
+
+
+def _club_source(name, pages, base):
+    """pages: list of (url, title_fn). base: fixed fields for every item."""
+    items, loaded = [], 0
+    for url in pages:
+        try:
+            t = text_of(fetch(url))
+        except (urllib.error.URLError, OSError) as e:
+            log(f"{name} failed {url}: {e}")
+            continue
+        loaded += 1
+        ranges = _dated_ranges(t)
+        by_head = {}
+        for h, d1, d2 in ranges:
+            by_head.setdefault(h, []).append((d1, d2))
+        for h, lst in by_head.items():
+            lst.sort()
+            for n, (d1, d2) in enumerate(lst, 1):
+                title = base["title_fn"](h)
+                if len(lst) > 1:
+                    title += f" (week {n})"
+                fields = {k: v for k, v in base.items() if k != "title_fn"}
+                items.append(blank(
+                    id=f"{name}-" + make_id(url, d1, d2),
+                    title=title, start=d1.isoformat(), end=d2.isoformat(), url=url,
+                    source=name,
+                    category=fields.pop("category", None) or categorise(title, fields.get("summary", ""), "", (d2 - d1).days + 1),
+                    **fields))
+    log(f"{name}: {len(items)} items from {loaded} pages")
+    return items, loaded
+
+
+def _title_case_heading(h):
+    h = clean(h)
+    if h.isupper():
+        h = h.title()
+    return h
+
+
+def source_ttamerica():
+    return _club_source("ttamerica", [
+        "https://www.ttamerica.org/winter-camp",
+        "https://www.ttamerica.org/thanksgiving-camp",
+        "https://www.ttamerica.org/summer-camp",
+        "https://www.ttamerica.org/spring-camp",
+    ], dict(
+        title_fn=lambda h: "Table Tennis America " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip() +
+        ("" if re.search(r"camp", h, re.I) else " camp"),
+        venue="Table Tennis America", area="Fremont, California",
+        address="42670 Albrae St, Fremont, CA 94538", country="United States",
+        summary="Full-day camp for players aged 5 and up, from complete beginners to competitive juniors, 9:30am to 4pm with half-day options.",
+        ages="5 and up", level="All levels", organiser="Table Tennis America", time="09:30",
+        category="Holiday camp"))
+
+
+def source_mdttc():
+    return _club_source("mdttc", ["https://www.mdttc.com/table-tennis-camps"], dict(
+        title_fn=lambda h: "Maryland Table Tennis Center " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip(),
+        venue="Maryland Table Tennis Center", area="Gaithersburg, Maryland",
+        address="18761 North Frederick Avenue, Gaithersburg, MD 20879", country="United States",
+        summary="Full and half-day holiday camp at one of the longest-running US camp programmes, with 2 to 3 coaches per session.",
+        level="All levels", organiser="Maryland Table Tennis Center", category="Holiday camp"))
+
+
+def source_paddlepalace():
+    return _club_source("paddlepalace", ["https://paddlepalaceclub.com/camps/"], dict(
+        title_fn=lambda h: "Paddle Palace " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip(),
+        venue="Paddle Palace Club", area="Tigard, Oregon",
+        address="12230 SW Main Street, Tigard, OR 97223", country="United States",
+        summary="Youth table tennis camp at the historic Paddle Palace club for ages 7 to 18 and all skill levels.",
+        ages="7 to 18", level="All levels", organiser="Paddle Palace Club", category="Holiday camp"))
+
+
+def source_ttcampshungary():
+    return _club_source("ttcampshungary", ["https://www.ttcampshungary.com/summertrainingcamps"], dict(
+        title_fn=lambda h: "TT Camps Hungary: " + re.sub(r"\s*\b20\d\d\b", "", _title_case_heading(h)).strip(),
+        venue="SPINCITY Buda", area="Budapest", address="", country="Hungary",
+        summary="Week-long training camp for players of all ages and standards, limited to 16 players a week, led by coaches with Olympic experience.",
+        ages="All ages", level="All standards", organiser="TT Camps Hungary", category="Residential camp"))
+
+
+# name, function, primary. If every primary source loads zero pages the
+# network is blocked and the script refuses to write a near-empty feed.
 AUTOMATIC = [
-    ("eventbrite", source_eventbrite, True),   # primary
-    ("cookeanddeaton", source_cooke_deaton, False),
-    ("lodziak", source_lodziak, False),
+    ("cookeanddeaton", source_cooke_deaton, True),
+    ("lodziak", source_lodziak, True),
+    ("borussia-ttschule", source_borussia_ttschule, True),
+    ("borussia-feriencamp", source_borussia_feriencamp, False),
+    ("ttamerica", source_ttamerica, False),
+    ("mdttc", source_mdttc, False),
+    ("paddlepalace", source_paddlepalace, False),
+    ("ttcampshungary", source_ttcampshungary, False),
     ("butterfly", source_butterfly, False),
 ]
 
@@ -574,7 +707,7 @@ NOMINATIM_CC = {"United Kingdom": "gb", "United States": "us", "Canada": "ca",
                 "Singapore": "sg", "Germany": "de", "Netherlands": "nl",
                 "France": "fr", "Spain": "es", "Austria": "at", "Sweden": "se",
                 "China": "cn", "Hong Kong": "hk", "Denmark": "dk", "Belgium": "be",
-                "Switzerland": "ch", "Italy": "it", "Portugal": "pt", "Japan": "jp"}
+                "Switzerland": "ch", "Hungary": "hu", "Italy": "it", "Portugal": "pt", "Japan": "jp"}
 
 
 def load_json(path, default):
@@ -694,7 +827,7 @@ def _nominatim(q, cc, venue):
     for r in res or []:
         name = (r.get("display_name") or "").lower()
         if num:
-            if re.match(rf"{re.escape(num.group(1).lower())}\b", name):
+            if re.search(rf"(^|, ){re.escape(num.group(1).lower())}(,|$)", name):
                 return [float(r["lat"]), float(r["lon"])]
         elif (venue and name.startswith(venue.lower())
               and int(r.get("place_rank", 0)) >= 22):  # a site, not a suburb/town
@@ -787,17 +920,21 @@ def main():
 
     scraped = []
     if not offline:
+        primary_pages = 0
         for name, fn, primary in AUTOMATIC:
             try:
                 got, pages = fn()
             except Exception as e:  # never let one source break the run
                 log(f"{name} crashed: {e!r}")
                 got, pages = [], 0
-            if primary and pages == 0:
-                log(f"primary source {name} loaded zero pages (blocked network?) "
-                    "- refusing to write a near-empty feed")
-                sys.exit(2)
+            if primary:
+                primary_pages += pages
+            STATS[name] = len(got)
             scraped.extend(got)
+        if primary_pages == 0:
+            log("every primary source loaded zero pages (blocked network?) "
+                "- refusing to write a near-empty feed")
+            sys.exit(2)
 
     items = [normalise(x) for x in curated] + [normalise(x) for x in scraped]
     items = [x for x in items if valid(x)]
