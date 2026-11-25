@@ -1,8 +1,8 @@
 # Table Tennis Camps
 
-The daily feed of table tennis camps around the world, for every age and level:
+The weekly feed of table tennis camps around the world, for every age and level:
 holiday camps, adult and club camps, high-performance camps, residential camps and
-skills clinics. Free, no accounts, refreshed every morning. Every listing links to
+skills clinics. Free, no accounts, refreshed every Friday. Every listing links to
 a public organiser or booking page.
 
 A static site: plain HTML, CSS and JS with no build step, deployed on Vercel from `main`.
@@ -20,7 +20,7 @@ A static site: plain HTML, CSS and JS with no build step, deployed on Vercel fro
 | `data/excluded.json` | IDs of scraped false matches to hide |
 | `data/events.json`, `data/events.js` | Generated feed (`window.EVENTS_DATA = …`) |
 | `data/geocache.json` | Verified coordinates, so venues aren't geocoded twice |
-| `REFRESH.md` | The daily refresh playbook |
+| `REFRESH.md` | The weekly refresh playbook |
 
 ## Data pipeline
 
@@ -43,7 +43,7 @@ Automatic sources, each in its own function that logs and skips on failure:
 If every primary source loads zero pages, the network is blocked and the script
 exits non-zero without writing anything. Sites that block scripts or have no
 reliable dates (B75, Hennebont, Urban TT, BriBar, ETTU and others) are checked by
-hand every day: see `REFRESH.md`.
+hand every week: see `REFRESH.md`.
 
 Relevance: a table tennis keyword *and* a camp keyword must appear, and an
 "irrelevant" regex drops social sessions, leagues, pickleball, padel and so on.
@@ -59,8 +59,12 @@ otherwise OpenStreetMap Nominatim. A Nominatim result is only accepted when the
 house number or the venue name matches. Camps without a verifiable location get
 no pin.
 
-## Daily refresh
+City (for the country and city filter): set by the source where it's fixed, otherwise
+looked up from the verified pin with Nominatim reverse geocoding (town before city,
+so Grantham isn't filed under its district).
 
-A scheduled Claude task runs `REFRESH.md` every morning at 07:13 Europe/London.
+## Weekly refresh
+
+A scheduled Claude task runs `REFRESH.md` every Friday at 07:13 Europe/London.
 The script needs no keys, so a GitHub Actions cron could run it as a backup.
 That backup is not set up yet.

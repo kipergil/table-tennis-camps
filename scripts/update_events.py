@@ -10,7 +10,7 @@ data/excluded.json.
 
 Usage:  python3 scripts/update_events.py [--offline]
   --offline   skip all network sources (rebuild from curated.json only,
-              geocoding from the cache). Never used by the daily refresh.
+              geocoding from the cache). Never used by the weekly refresh.
 """
 
 import datetime as dt
@@ -35,7 +35,7 @@ TODAY = dt.date.today()
 FIELDS = ["id", "title", "start", "end", "time", "venue", "area", "address",
           "lat", "lng", "online", "category", "summary", "url", "source",
           # topic-specific
-          "country", "ages", "level", "price", "organiser", "residential"]
+          "country", "city", "ages", "level", "price", "organiser", "residential"]
 
 CATEGORIES = ["Holiday camp", "Adult & club camp", "High-performance camp",
               "Residential camp", "Skills clinic"]
@@ -342,7 +342,7 @@ def source_lodziak():
         items.append(blank(
             id="tl-" + make_id(url, d1),
             title=title, start=d1.isoformat(), end=d2.isoformat(),
-            time=det.get("time", ""), venue=det.get("venue", ""), area="Cambridge",
+            time=det.get("time", ""), venue=det.get("venue", ""), area="Cambridge", city="Cambridge",
             address=det.get("address", ""), category=cat,
             summary=summarise(det.get("summary", "")), url=url, source="lodziak",
             country="United Kingdom", level="Intermediate to advanced",
@@ -436,7 +436,7 @@ def source_butterfly():
 
 BOR_VENUE = dict(venue="Borussia Düsseldorf",
                  area="Deutsches Tischtennis-Zentrum, Düsseldorf",
-                 address="", country="Germany",
+                 address="", country="Germany", city="Düsseldorf",
                  organiser="Borussia Düsseldorf")
 TTS_URL = "https://tt-schule.borussia-duesseldorf.com/kurse/kurstermine-anmeldung"
 TTS_INFO = "https://tt-schule.borussia-duesseldorf.com/"
@@ -650,7 +650,7 @@ def source_ttamerica():
         title_fn=lambda h: "Table Tennis America " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip() +
         ("" if re.search(r"camp", h, re.I) else " camp"),
         venue="Table Tennis America", area="Fremont, California",
-        address="42670 Albrae St, Fremont, CA 94538", country="United States",
+        address="42670 Albrae St, Fremont, CA 94538", country="United States", city="Fremont",
         summary="Full-day camp for players aged 5 and up, from complete beginners to competitive juniors, 9:30am to 4pm with half-day options.",
         ages="5 and up", level="All levels", organiser="Table Tennis America", time="09:30",
         category="Holiday camp"))
@@ -660,7 +660,7 @@ def source_mdttc():
     return _club_source("mdttc", ["https://www.mdttc.com/table-tennis-camps"], dict(
         title_fn=lambda h: "Maryland Table Tennis Center " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip(),
         venue="Maryland Table Tennis Center", area="Gaithersburg, Maryland",
-        address="18761 North Frederick Avenue, Gaithersburg, MD 20879", country="United States",
+        address="18761 North Frederick Avenue, Gaithersburg, MD 20879", country="United States", city="Gaithersburg",
         summary="Full and half-day holiday camp at one of the longest-running US camp programmes, with 2 to 3 coaches per session.",
         level="All levels", organiser="Maryland Table Tennis Center", category="Holiday camp"))
 
@@ -669,7 +669,7 @@ def source_paddlepalace():
     return _club_source("paddlepalace", ["https://paddlepalaceclub.com/camps/"], dict(
         title_fn=lambda h: "Paddle Palace " + re.sub(r"\b20\d\d\b\s*", "", _title_case_heading(h)).strip(),
         venue="Paddle Palace Club", area="Tigard, Oregon",
-        address="12230 SW Main Street, Tigard, OR 97223", country="United States",
+        address="12230 SW Main Street, Tigard, OR 97223", country="United States", city="Tigard",
         summary="Youth table tennis camp at the historic Paddle Palace club for ages 7 to 18 and all skill levels.",
         ages="7 to 18", level="All levels", organiser="Paddle Palace Club", category="Holiday camp"))
 
@@ -677,7 +677,7 @@ def source_paddlepalace():
 def source_ttcampshungary():
     return _club_source("ttcampshungary", ["https://www.ttcampshungary.com/summertrainingcamps"], dict(
         title_fn=lambda h: "TT Camps Hungary: " + re.sub(r"\s*\b20\d\d\b", "", _title_case_heading(h)).strip(),
-        venue="SPINCITY Buda", area="Budapest", address="", country="Hungary",
+        venue="SPINCITY Buda", area="Budapest", address="", country="Hungary", city="Budapest",
         summary="Week-long training camp for players of all ages and standards, limited to 16 players a week, led by coaches with Olympic experience.",
         ages="All ages", level="All standards", organiser="TT Camps Hungary", category="Residential camp"))
 
@@ -789,8 +789,32 @@ def geocode(items, offline=False):
                 it["lat"], it["lng"] = cache[key]
                 break
 
+    # 4. city for the place filter: from the verified pin when a source gave none
+    for it in items:
+        if it.get("city") or it.get("lat") is None:
+            continue
+        key = f"rev:{it['lat']:.4f},{it['lng']:.4f}"
+        if key not in cache and not offline:
+            cache[key] = _reverse_city(it["lat"], it["lng"])
+        if cache.get(key):
+            it["city"] = cache[key]
+
     with open(GEOCACHE, "w", encoding="utf-8") as f:
         json.dump(cache, f, indent=1, sort_keys=True, ensure_ascii=False)
+
+
+def _reverse_city(lat, lng):
+    url = ("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14"
+           f"&accept-language=en&lat={lat}&lon={lng}")
+    try:
+        res = json.loads(fetch(url, ua=UA_BOT))
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        log("nominatim reverse failed", lat, lng, e)
+        return None
+    finally:
+        time.sleep(1.1)
+    a = res.get("address") or {}
+    return a.get("town") or a.get("city") or a.get("village") or a.get("municipality") or None
 
 
 def _queries(it):
