@@ -277,8 +277,7 @@
         var cities = tally(filtered({ city: "" }), "city");
         if (state.city && !cities.some(function (c) { return c.name === state.city; })) cities.push({ name: state.city, n: 0 });
         if (cities.length) {
-          h += '<div class="chips cities" role="group" aria-label="City in ' + esc(state.country) + '">' +
-            '<span class="chips-label">Cities in ' + esc(placeName(state.country)) + '</span>';
+          h += '<div class="chips cities" role="group" aria-label="Cities in ' + esc(placeName(state.country)) + '">';
           cities.forEach(function (c) {
             var on = state.city === c.name;
             h += '<button type="button" class="chip place" data-city="' + esc(c.name) + '" aria-pressed="' + on + '">' +

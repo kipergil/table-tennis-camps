@@ -192,10 +192,6 @@ button, input, select { font: inherit; color: inherit; }
 .chip[disabled] { opacity: .5; cursor: default; }
 .chip .ico { width: 15px; height: 15px; flex: none; color: var(--muted); }
 .chip.place[aria-pressed="true"] .ico { color: var(--ink); }
-.chips-label {
-  flex: none; align-self: center; font-size: .86rem; font-weight: 600; color: var(--muted);
-  padding: 0 2px 0 4px;
-}
 .menus { display: flex; gap: 10px; flex-wrap: wrap; }
 .menu { position: relative; flex: 1 1 200px; min-width: 0; max-width: 320px; }
 .menu select {
