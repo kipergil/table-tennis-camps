@@ -347,6 +347,54 @@ main { padding: 22px 0 40px; }
 /* ---------- footer / about ---------- */
 .site-foot { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--muted); font-size: .93rem; }
 .site-foot p { margin: 0 0 6px; max-width: 46rem; }
+
+/* Ko-fi support: present but quiet, never in the header or controls */
+.kofi {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px;
+  border-radius: 999px; border: 1.5px solid var(--rule); background: var(--card);
+  color: var(--ink); font-weight: 700; font-size: .9rem; text-decoration: none; white-space: nowrap;
+}
+.kofi:hover { border-color: var(--ball); }
+.kofi svg { width: 17px; height: 17px; color: var(--ball); flex: none; }
+.site-foot .support { margin-top: 14px; }
+.site-foot .support .kofi { margin-right: 8px; vertical-align: middle; }
+/* the eye-catching Ko-fi box: the table header's blue, the orange ball, one bright button */
+.support-box {
+  position: relative; display: flex; gap: 18px; align-items: flex-start;
+  margin: 22px 0; padding: 22px 24px; border-radius: 14px; color: #fff; overflow: hidden;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0 1px, transparent 1px 9px),
+    linear-gradient(150deg, var(--table) 0%, var(--table-deep) 100%);
+  border: 3px solid #fff; box-shadow: 0 0 0 1px var(--rule), 0 10px 24px -14px rgba(11, 21, 48, .55);
+}
+.support-ball {
+  flex: none; width: 46px; height: 46px; border-radius: 50%; margin-top: 2px;
+  background: radial-gradient(circle at 35% 30%, #ffd2ae 0 18%, var(--ball) 55%, #c8571a 100%);
+  box-shadow: 0 3px 0 rgba(0,0,0,.25);
+}
+.support-body { min-width: 0; }
+.support-box h3 { margin: 0 0 6px; font-size: 1.3rem; line-height: 1.25; color: #fff; }
+.support-box p { margin: 0; color: #e6ecfb; max-width: 44rem; }
+.support-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
+.support-cta {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px;
+  border-radius: 999px; background: var(--ball); color: #141d33; font-weight: 800; font-size: 1rem;
+  text-decoration: none; box-shadow: 0 3px 0 #b5531a;
+}
+.support-cta:hover { background: #ff8a3d; }
+.support-cta:active { transform: translateY(2px); box-shadow: 0 1px 0 #b5531a; }
+.support-cta svg { width: 20px; height: 20px; flex: none; }
+.support-box :focus-visible { outline-color: #fff; }
+.support-hide {
+  border: 0; background: none; padding: 6px 2px; color: #c9d6f2; font-size: .88rem;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.support-hide:hover { color: #fff; }
+@media (max-width: 520px) {
+  .support-box { flex-direction: column; gap: 12px; padding: 18px; }
+  .support-ball { width: 34px; height: 34px; }
+  .support-cta { width: 100%; justify-content: center; }
+}
 .prose { max-width: 46rem; }
 .prose h2 { margin-top: 2rem; font-size: 1.4rem; }
 .prose li { margin-bottom: .4rem; }

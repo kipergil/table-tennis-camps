@@ -178,6 +178,7 @@
     cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
     out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+    cup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3.5c0 1 1 1 1 2M12 3.5c0 1 1 1 1 2"/></svg>',
     globe: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
     pinSmall: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -425,6 +426,33 @@
     '</article>';
   }
 
+  // ---------- Ko-fi support box ----------
+  var KOFI_URL = "https://ko-fi.com/kipergil";
+  var SUPPORT_KEY = "ttc-support-hidden-until";
+  function supportHidden() {
+    try { return Number(localStorage.getItem(SUPPORT_KEY) || 0) > Date.now(); } catch (err) { return false; }
+  }
+  function supportBoxHTML() {
+    if (supportHidden()) return "";
+    return '<aside class="support-box" aria-labelledby="support-h">' +
+      '<span class="support-ball" aria-hidden="true"></span>' +
+      '<div class="support-body">' +
+        '<h3 id="support-h">Found your next camp here?</h3>' +
+        '<p>I build Table Tennis Camps and other free tools in my spare time: no ads, no paywall, no sign-up. ' +
+        'If this saved you hours of searching, a coffee keeps the camps coming every week.</p>' +
+        '<div class="support-actions">' +
+          '<a class="support-cta" href="' + KOFI_URL + '" target="_blank" rel="noopener">' + ICON.cup +
+            '<span>Support me on Ko-fi</span></a>' +
+          '<button type="button" class="support-hide" data-support-hide="1">Hide for now</button>' +
+        '</div>' +
+      '</div>' +
+    '</aside>';
+  }
+  function renderSupportSlot() {
+    var slot = document.getElementById("support-slot");
+    if (slot) slot.innerHTML = state.view === "list" ? "" : supportBoxHTML();
+  }
+
   function dayHead(d) {
     var rel = relTag(d);
     return '<div class="day-date"><span class="day-num">' + d.getDate() + '</span>' +
@@ -447,10 +475,13 @@
     });
     order.sort();
     var h = "";
-    order.forEach(function (k) {
+    var boxAt = Math.min(3, order.length);  // after the 3rd day, or at the end of a short list
+    order.forEach(function (k, i) {
       h += '<section class="day" aria-label="' + esc(rangeText(parseD(k), parseD(k))) + '">' + dayHead(parseD(k)) +
         '<div class="day-items">' + groups[k].map(function (e) { return rowHTML(e); }).join("") + '</div></section>';
+      if (i + 1 === boxAt) h += supportBoxHTML();
     });
+    if (!order.length) h += supportBoxHTML();
     if (long.length) {
       h += '<section class="long-strip" aria-labelledby="long-h"><h3 id="long-h">Already running</h3>' +
         '<p>Longer camps that have started and still take bookings for the remaining days or the next intake.</p>' +
@@ -614,6 +645,7 @@
       var l = on.offsetLeft - row.offsetLeft, r = l + on.offsetWidth;
       if (l < row.scrollLeft || r > row.scrollLeft + row.clientWidth) row.scrollLeft = Math.max(0, l - 16);
     });
+    renderSupportSlot();
     var qc = document.getElementById("q-clear");
     qc.hidden = !state.q;
     writeURL();
@@ -670,6 +702,13 @@
       render();
       var sel = document.getElementById({ when: "when-sel", cat: "cat-sel", place: "place-sel" }[t.dataset.clear]);
       if (sel) sel.focus();
+      return;
+    }
+    if (t.dataset.supportHide) {
+      try { localStorage.setItem(SUPPORT_KEY, String(Date.now() + 30 * 86400000)); } catch (err) {}
+      document.querySelectorAll(".support-box").forEach(function (x) { x.remove(); });
+      var hd = document.getElementById("heading");
+      if (hd) hd.focus({ preventScroll: true });
       return;
     }
     if (t.dataset.reset) { state.when = "all"; state.cat = ""; state.country = ""; state.city = ""; state.q = ""; qInput.value = ""; render(); return; }
